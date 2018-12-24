@@ -1,6 +1,6 @@
 {
   "name": "sonos-web-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A command-line tool to quickly setup a Sonos Web server",
   "keywords": [
     "sonos",
@@ -11,6 +11,10 @@
   "license": "GPL-3.0",
   "bin": {
     "sonos-web": "./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Villarrealized/sonos-web-cli"
   },
   "dependencies": {
     "colors": "^1.3.3",
