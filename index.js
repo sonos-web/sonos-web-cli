@@ -5,6 +5,7 @@ const download = require('download-git-repo');
 const shell = require('shelljs');
 const ora = require('ora');
 const fs = require('fs-extra');
+const ip = require('ip');
 const { version, name } = require('./package.json');
 
 const configFileName = 'sonos-web-config.json';
@@ -73,8 +74,12 @@ async function start() {
     await asyncExec('forever start src/server.js');
     spinner.succeed();
 
+    const localIP = ip.address();
+    const sonosNetworkAddress = `http://${localIP}:5050`;
+
     console.log('');
-    logSuccess('Open a web browser to http://localhost:5050 to start!');
+    logSuccess(`Open a web browser on this computer to ${colors.cyan('http://localhost:5050')} to start!`);
+    console.log(`You can access ${colors.yellow('Sonos Web')} network-wide by going to ${colors.cyan(sonosNetworkAddress)}`);
   } catch (err) {
     spinner.fail();
     logError(`no installation found...run ${colors.cyan('sonos-web install')} to get started`);
