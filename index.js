@@ -219,7 +219,7 @@ program
 
 program
   .command('update')
-  .description('Updates Sonos Web by removing the old installation and installing the latest version')
+  .description('Update Sonos Web to the latest version')
   .action(update);
 
 program
