@@ -67,22 +67,37 @@ async function getInstallationPath() {
  * Start an existing installation of Sonos Web
  */
 async function start() {
+  const noPortErrorMessage = 'Could not find PORT environment variable';
   try {
     spinner.start(`Starting ${colors.yellow('Sonos Web')}`);
     const installPath = await getInstallationPath();
     shell.cd(installPath);
+
+    const envFile = await fs.readFile('.env');
+    const portEnv = envFile.toString().split('\n').find(env => env.includes('PORT='));
+    if (!portEnv) {
+      throw (new Error(noPortErrorMessage));
+    }
+
     await asyncExec('forever start src/server.js');
     spinner.succeed();
 
+    // eslint-disable-next-line prefer-destructuring
+    const port = portEnv.split('=')[1];
     const localIP = ip.address();
-    const sonosNetworkAddress = `http://${localIP}:5050`;
+    const sonosNetworkAddress = `http://${localIP}:${port}`;
 
     console.log('');
-    logSuccess(`Open a web browser on this computer to ${colors.cyan('http://localhost:5050')} to start!`);
+    logSuccess(`Open a web browser on this computer to ${colors.cyan(`http://localhost:${port}`)} to start!`);
     console.log(`You can access ${colors.yellow('Sonos Web')} network-wide by going to ${colors.cyan(sonosNetworkAddress)}`);
   } catch (err) {
     spinner.fail();
-    logError(`no installation found...run ${colors.cyan('sonos-web install')} to get started`);
+    if (err.message === noPortErrorMessage) {
+      logError(noPortErrorMessage);
+    } else {
+      logError(`no installation found...run ${colors.cyan('sonos-web install')} to get started`);
+    }
+
     shell.exit(1);
   }
 }
