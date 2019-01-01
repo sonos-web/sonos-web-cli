@@ -6,21 +6,29 @@ const shell = require('shelljs');
 const ora = require('ora');
 const fs = require('fs-extra');
 const ip = require('ip');
-const { version, name } = require('./package.json');
-
-const configFileName = 'sonos-web-config.json';
+const { version } = require('./package.json');
 
 const spinner = ora();
 
-function asyncExec(command, logFile) {
+/**
+ * Returns the absolute installation path for Sonos Web
+ */
+function absoluteInstallPath() {
+  shell.cd('~');
+  const path = `${shell.pwd().stdout}/.sonos-web`;
+  return path;
+}
+const installPath = absoluteInstallPath();
+const logFile = `${installPath}/install.log`;
+
+
+function asyncExec(command) {
   return new Promise((resolve, reject) => {
     shell.exec(command, { silent: true, async: false }, (code, stdout, stderr) => {
-      if (logFile) {
-        const stream = fs.createWriteStream(logFile, { flags: 'a' });
-        stream.write(stdout);
-        stream.write(stderr);
-        stream.end();
-      }
+      const stream = fs.createWriteStream(logFile, { flags: 'a' });
+      stream.write(stdout);
+      stream.write(stderr);
+      stream.end();
       if (code !== 0) {
         reject(code);
       } else {
@@ -42,25 +50,8 @@ function logInfo(description) {
   console.log(colors.bold.magenta('info ') + description);
 }
 
-/**
- * Return the root path where this cli is installed
- */
-async function getPackageRoot() {
-  const path = await asyncExec('npm root -g');
-  return `${path.trim()}/${name}`;
-}
-
-/**
- * Return the installation path of Sonos Web. Throws error if no installation was found.
- */
-async function getInstallationPath() {
-  try {
-    const packagePath = await getPackageRoot();
-    const { installDir } = fs.readJsonSync(`${packagePath}/${configFileName}`);
-    return installDir;
-  } catch (err) {
-    throw err;
-  }
+function isInstalled() {
+  return shell.test('-d', installPath);
 }
 
 /**
@@ -70,7 +61,7 @@ async function start() {
   const noPortErrorMessage = 'Could not find PORT environment variable';
   try {
     spinner.start(`Starting ${colors.yellow('Sonos Web')}`);
-    const installPath = await getInstallationPath();
+    if (!isInstalled()) throw new Error();
     shell.cd(installPath);
 
     const envFile = await fs.readFile('.env');
@@ -105,7 +96,7 @@ async function start() {
 async function stop() {
   try {
     spinner.start(`Stopping ${colors.yellow('Sonos Web')}`);
-    const installPath = await getInstallationPath();
+    if (!isInstalled()) throw new Error();
     shell.cd(installPath);
   } catch (err) {
     spinner.fail();
@@ -124,26 +115,13 @@ async function stop() {
 
 async function uninstall() {
   console.log(`Uninstalling ${colors.yellow('Sonos Web')}`);
-  let installPath = null;
-  try {
-    installPath = await getInstallationPath();
-    shell.cd(installPath);
-  } catch (err) {
-    logError('no installation found');
-    shell.exit(1);
-  }
-
   // stop the server if it is running
   await stop();
+
   try {
     spinner.start('removing installation');
-    // Remove config file
-    const packagePath = await getPackageRoot();
-    const configFilePath = `${packagePath}/${configFileName}`;
-    await fs.remove(configFilePath);
-
     // Remove server files & directory
-    await fs.remove(installPath);
+    fs.removeSync(installPath);
     spinner.succeed();
     logSuccess(`${colors.yellow('Sonos Web')} uninstalled successfully`);
   } catch (err) {
@@ -154,22 +132,20 @@ async function uninstall() {
 }
 
 async function install() {
-  const installDir = `${process.cwd()}/sonos-web`;
-  const logFile = `${installDir}/sonos-web-install.log`;
+  if (isInstalled()) {
+    console.log(`${colors.bold.yellow('Sonos Web')} is already installed`);
+    console.log(`You may run ${colors.cyan('sonos-web update')} to remove the old installation and reinstall`);
+    shell.exit(1);
+  }
 
   console.log(`Installing ${colors.bold.yellow('Sonos Web')}`);
-
-  try {
-    const packagePath = await getPackageRoot();
-    // Write the installation path for use in other cli commands
-    fs.writeJson(`${packagePath}/${configFileName}`, { installDir });
-  } catch (err) {
-    logError(err);
+  if (shell.mkdir(installPath).code !== 0) {
+    logError('Could not create install directory');
     shell.exit(1);
   }
 
   spinner.start('downloading installation files');
-  download('Villarrealized/sonos-web', installDir, async (err) => {
+  download('Villarrealized/sonos-web', installPath, async (err) => {
     // clear log file
     fs.writeFile(logFile, '');
 
@@ -179,9 +155,8 @@ async function install() {
       shell.exit(1);
     }
     spinner.succeed();
-
     // Build Vue client server for production
-    shell.cd(`${installDir}/client`);
+    shell.cd(`${installPath}/client`);
 
     try {
       spinner.start('installing front-end dependencies');
@@ -193,13 +168,13 @@ async function install() {
       spinner.succeed();
 
       spinner.start('install back-end dependencies');
-      shell.cd(`${installDir}/server`);
+      shell.cd(`${installPath}/server`);
       await asyncExec('npm install --only=production');
       await asyncExec('npm install forever -g');
       spinner.succeed();
 
       spinner.start('cleaning up installation files');
-      shell.cd(installDir);
+      shell.cd(installPath);
       // Move the dist folder created by `npm run build` in to the server folder
       shell.mv('client/dist', 'server');
 
@@ -207,11 +182,11 @@ async function install() {
       shell.mv('server/.env.production', 'server/.env');
       await fs.remove('.gitignore');
       await fs.remove('client');
-      shell.cd(`${installDir}/server`);
+      shell.cd(`${installPath}/server`);
       await fs.remove('package.json');
       await fs.remove('.eslintrc.js');
       await fs.remove('package-lock.json');
-      shell.cd(installDir);
+      shell.cd(installPath);
       shell.mv('server/*', '.');
       shell.mv('server/.*', '.');
       await fs.remove('server');
@@ -227,6 +202,11 @@ async function install() {
   });
 }
 
+async function update() {
+  await uninstall();
+  await install();
+}
+
 
 program
   .version(version)
@@ -234,8 +214,13 @@ program
 
 program
   .command('install')
-  .description('Install Sonos Web to the current directory')
+  .description('Install Sonos Web to your home directory')
   .action(install);
+
+program
+  .command('update')
+  .description('Updates Sonos Web by removing the old installation and installing the latest version')
+  .action(update);
 
 program
   .command('start')
