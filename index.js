@@ -23,12 +23,16 @@ function absoluteInstallPath() {
 
 const foreverPath = `${path.dirname(require.resolve('forever/package.json'))}/bin/forever`;
 const installPath = absoluteInstallPath();
-const logFile = `${installPath}/install.log`;
+const installLogFile = `${installPath}/install.log`;
+const foreverLogFile = `${installPath}/forever.log`;
+const logFile = `${installPath}/sonos-web.log`;
+const pidFile = `${installPath}/sonos-web.pid`;
+
 
 function asyncExec(command) {
   return new Promise((resolve, reject) => {
     shell.exec(command, { silent: true, async: false }, (code, stdout, stderr) => {
-      const stream = fs.createWriteStream(logFile, { flags: 'a' });
+      const stream = fs.createWriteStream(installLogFile, { flags: 'a' });
       stream.write(stdout);
       stream.write(stderr);
       stream.end();
@@ -74,7 +78,7 @@ async function start() {
       throw (new Error(noPortErrorMessage));
     }
 
-    await asyncExec(`${foreverPath} start src/server.js`);
+    await asyncExec(`${foreverPath} --pidFile ${pidFile} -a -l ${foreverLogFile} -o ${logFile} -e ${logFile} start src/server.js`);
     spinner.succeed();
 
     // eslint-disable-next-line prefer-destructuring
@@ -151,10 +155,10 @@ async function install() {
   spinner.start('downloading installation files');
   download('Villarrealized/sonos-web', installPath, async (err) => {
     // clear log file
-    fs.writeFile(logFile, '');
+    fs.writeFile(installLogFile, '');
 
     if (err) {
-      fs.write(logFile, err);
+      fs.write(installLogFile, err);
       spinner.fail();
       shell.exit(1);
     }
@@ -200,7 +204,7 @@ async function install() {
       start();
     } catch (code) {
       spinner.fail();
-      logError(`installation failed...check ${logFile} for more details`);
+      logError(`installation failed...check ${installLogFile} for more details`);
       shell.exit(1);
     }
   });
