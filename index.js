@@ -55,7 +55,7 @@ function logInfo(description) {
 
 
 function isInstalled() {
-  return shell.test('-f', `${installPath}/src/servers.js`);
+  return shell.test('-f', `${installPath}/src/server.js`);
 }
 
 /**
