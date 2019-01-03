@@ -6,6 +6,8 @@ const shell = require('shelljs');
 const ora = require('ora');
 const fs = require('fs-extra');
 const ip = require('ip');
+const path = require('path');
+
 const { version } = require('./package.json');
 
 const spinner = ora();
@@ -15,12 +17,13 @@ const spinner = ora();
  */
 function absoluteInstallPath() {
   shell.cd('~');
-  const path = `${shell.pwd().stdout}/.sonos-web`;
-  return path;
+  const absolutePath = `${shell.pwd().stdout}/.sonos-web`;
+  return absolutePath;
 }
+
+const foreverPath = `${path.dirname(require.resolve('forever/package.json'))}/bin/forever`;
 const installPath = absoluteInstallPath();
 const logFile = `${installPath}/install.log`;
-
 
 function asyncExec(command) {
   return new Promise((resolve, reject) => {
@@ -50,8 +53,9 @@ function logInfo(description) {
   console.log(colors.bold.magenta('info ') + description);
 }
 
+
 function isInstalled() {
-  return shell.test('-d', installPath);
+  return shell.test('-f', `${installPath}/src/servers.js`);
 }
 
 /**
@@ -70,7 +74,7 @@ async function start() {
       throw (new Error(noPortErrorMessage));
     }
 
-    await asyncExec('forever start src/server.js');
+    await asyncExec(`${foreverPath} start src/server.js`);
     spinner.succeed();
 
     // eslint-disable-next-line prefer-destructuring
@@ -105,7 +109,7 @@ async function stop() {
   }
 
   try {
-    await asyncExec('forever stop src/server.js');
+    await asyncExec(`${foreverPath} stop src/server.js`);
     spinner.succeed();
   } catch (err) {
     spinner.fail();
@@ -120,7 +124,7 @@ async function uninstall() {
 
   try {
     spinner.start('removing installation');
-    // Remove server files & directory
+    // Remove server fiforeveles & directory
     fs.removeSync(installPath);
     spinner.succeed();
     logSuccess(`${colors.yellow('Sonos Web')} uninstalled successfully`);
@@ -170,7 +174,7 @@ async function install() {
       spinner.start('install back-end dependencies');
       shell.cd(`${installPath}/server`);
       await asyncExec('npm install --only=production');
-      await asyncExec('npm install forever -g');
+      // await asyncExec('npm install forever -g');
       spinner.succeed();
 
       spinner.start('cleaning up installation files');
