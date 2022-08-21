@@ -3,7 +3,7 @@
 
 CLI tool for installing &amp; managing Sonos Web (sonos-web)
 
-Check out [sonos-web](https://github.com/Villarrealized/sonos-web) for more info
+Check out [sonos-web](https://github.com/sonos-web/sonos-web) for more info
 
 ## Basic Setup
 If you do not already have npm installed, you must do so [here](https://www.npmjs.com/get-npm) before continuing
@@ -15,4 +15,4 @@ Once npm is installed, run the following commands in your terminal to get starte
 Run `sonos-web --help` for more options
 
 ## License
-[GPL v3.0](https://github.com/Villarrealized/sonos-web-cli/blob/master/LICENSE)
+[GPL v3.0](https://github.com/sonos-web/sonos-web-cli/blob/master/LICENSE)
