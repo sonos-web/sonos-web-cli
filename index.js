@@ -4,6 +4,7 @@ const colors = require('colors');
 const download = require('download-git-repo');
 const shell = require('shelljs');
 const ora = require('ora');
+const os = require("os");
 const fs = require('fs-extra');
 const ip = require('ip');
 const path = require('path');
@@ -16,9 +17,7 @@ const spinner = ora();
  * Returns the absolute installation path for Sonos Web
  */
 function absoluteInstallPath() {
-  shell.cd('~');
-  const absolutePath = `${shell.pwd().stdout}/.sonos-web`;
-  return absolutePath;
+  return `${os.homedir()}/.sonos-web`;
 }
 
 const foreverPath = `${path.dirname(require.resolve('forever/package.json'))}/bin/forever`;
