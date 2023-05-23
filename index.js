@@ -56,7 +56,16 @@ function logError(description) {
 }
 
 function isRunning() {
-  return shell.test('-f', pidFile);
+  if (!shell.test('-f', pidFile)) {
+    return 0
+  }
+  try {
+    pid = fs.readFileSync(pidFile)
+    return process.kill(pid,0)
+  }
+  catch (e) {
+    return e.code === 'EPERM'
+  }
 }
 
 
